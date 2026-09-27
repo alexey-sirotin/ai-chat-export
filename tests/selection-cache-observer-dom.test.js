@@ -18,6 +18,15 @@ function stableContainer(turnId, messageId, {
 }
 
 describe("selection-cache observer DOM identity rules", () => {
+  it("requests selection-index prewarm for the current conversation on load", () => {
+    const { chrome } = loadBrowserScript("selection-cache-observer.js");
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({
+      type: "PREWARM_SELECTION_INDEX",
+      conversationId: "test-conversation"
+    });
+  });
+
   it("prefers a stable data-message-id over a stable turn/container id", () => {
     const { dispatch } = loadBrowserScript("selection-cache-observer.js", {
       html: stableContainer("ui-render-turn", "server-message-id")
@@ -133,6 +142,7 @@ describe("selection-cache observer DOM identity rules", () => {
       `
     });
 
+    chrome.runtime.sendMessage.mockClear();
     dispatch({ type: "ENABLE_SELECTION_INDEX_WATCH" });
     dispatch({ type: "ENABLE_SELECTION_INDEX_WATCH" });
 
