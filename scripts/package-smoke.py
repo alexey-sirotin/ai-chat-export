@@ -170,11 +170,15 @@ def check_release_build_mode(archive):
     with ZipFile(archive) as zf:
         try:
             source = zf.read("build-mode.js").decode("utf-8")
-        except KeyError:
-            fail(f"{archive.name} is missing build-mode.js")
+            background = zf.read("background.js").decode("utf-8")
+        except KeyError as exc:
+            fail(f"{archive.name} is missing {exc.args[0]}")
 
     if "INCLUDE_DEBUG_JSON = false" not in source:
         fail(f"{archive.name} must disable debug JSON export")
+
+    if "const exportJsonEnabled = INCLUDE_DEBUG_JSON && msg.exportJson !== false;" not in background:
+        fail(f"{archive.name} background must enforce the debug JSON build flag")
 
 
 def check_common_manifest(source, packaged, archive):
