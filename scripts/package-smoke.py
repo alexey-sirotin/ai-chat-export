@@ -180,6 +180,12 @@ def check_release_build_mode(archive):
     if "const exportJsonEnabled = INCLUDE_DEBUG_JSON && msg.exportJson !== false;" not in background:
         fail(f"{archive.name} background must enforce the debug JSON build flag")
 
+    if 'exporter: "ai-chat-export"' not in background:
+        fail(f"{archive.name} background must use the AI Chat Export JSON identifier")
+
+    if 'exporter: "chatgpt-export-md-html"' in background:
+        fail(f"{archive.name} background contains the legacy JSON exporter identifier")
+
 
 def check_common_manifest(source, packaged, archive):
     for key in ("manifest_version", "name", "version", "description", "action", "content_scripts"):
