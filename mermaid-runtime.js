@@ -1,35 +1,32 @@
-const MERMAID_SCRIPT_PATH = "vendor/mermaid.min.js";
-let scriptPromise = null;
+const MERMAID_MODULE_PATH = "./vendor/mermaid-esm/mermaid.esm.min.mjs";
+let modulePromise = null;
 let initialized = false;
 let renderCounter = 0;
 
-function loadMermaidScript() {
-  if (globalThis.mermaid?.render) return Promise.resolve(globalThis.mermaid);
-  if (scriptPromise) return scriptPromise;
+function loadMermaidModule() {
+  if (modulePromise) return modulePromise;
   if (typeof document === "undefined") {
     return Promise.reject(new Error("Mermaid rendering requires a DOM document"));
   }
 
-  scriptPromise = new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = chrome.runtime.getURL(MERMAID_SCRIPT_PATH);
-    script.async = true;
-    script.onload = () => {
-      if (globalThis.mermaid?.render) resolve(globalThis.mermaid);
-      else reject(new Error("Vendored Mermaid runtime did not initialize"));
-    };
-    script.onerror = () => reject(new Error("Could not load vendored Mermaid runtime"));
-    (document.head || document.documentElement).appendChild(script);
-  }).catch(error => {
-    scriptPromise = null;
-    throw error;
-  });
+  modulePromise = import(MERMAID_MODULE_PATH)
+    .then(module => {
+      const mermaid = module?.default || module;
+      if (!mermaid?.render) {
+        throw new Error("Vendored Mermaid ESM runtime did not initialize");
+      }
+      return mermaid;
+    })
+    .catch(error => {
+      modulePromise = null;
+      throw error;
+    });
 
-  return scriptPromise;
+  return modulePromise;
 }
 
 async function ensureMermaid() {
-  const mermaid = await loadMermaidScript();
+  const mermaid = await loadMermaidModule();
   if (!initialized) {
     mermaid.initialize({
       startOnLoad: false,
