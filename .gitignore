@@ -8,6 +8,7 @@
 # Local build/output directories
 dist/
 build/
+vendor/mermaid-esm/
 
 # Editor/IDE files
 .vscode/
