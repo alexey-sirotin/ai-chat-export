@@ -23,6 +23,7 @@ fi
 DIST="$ROOT/dist"
 CHROMIUM="$DIST/chromium"
 FIREFOX="$DIST/firefox"
+MERMAID_ESM="$ROOT/vendor/mermaid-esm"
 
 rm -rf "$DIST"
 mkdir -p "$CHROMIUM" "$FIREFOX"
@@ -42,6 +43,21 @@ copy_tracked_files() {
 
 copy_tracked_files "$CHROMIUM"
 copy_tracked_files "$FIREFOX"
+
+if [[ ! -f "$MERMAID_ESM/mermaid.esm.min.mjs" || ! -d "$MERMAID_ESM/chunks/mermaid.esm.min" ]]; then
+  echo "Prepared Mermaid ESM runtime is missing; run npm install first" >&2
+  exit 1
+fi
+
+# The classic Mermaid browser bundle uses Function/eval-style constructs that
+# Firefox extension CSP rejects. Release packages use Mermaid's official ESM
+# distribution instead, including its locally packaged dynamic-import chunks.
+for target in "$CHROMIUM" "$FIREFOX"; do
+  rm -f "$target/vendor/mermaid.min.js"
+  rm -rf "$target/vendor/mermaid-esm"
+  mkdir -p "$target/vendor"
+  cp -R "$MERMAID_ESM" "$target/vendor/mermaid-esm"
+done
 
 # Working-tree builds keep the normalized JSON export for diagnostics. Release
 # packages deliberately disable it so Markdown and HTML are the public formats.
