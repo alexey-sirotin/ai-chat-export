@@ -12,11 +12,27 @@
   let enabled = false;
   let observer = null;
   let refreshQueued = false;
+  let reportedConversationId = null;
   const reported = new Set();
 
   function currentConversationId() {
     const match = location.pathname.match(/\/c\/([^/?#]+)/);
     return match ? decodeURIComponent(match[1]) : null;
+  }
+
+  function prewarmCurrentConversation() {
+    const conversationId = currentConversationId();
+    if (!conversationId) {
+      reportedConversationId = null;
+      return;
+    }
+    if (conversationId === reportedConversationId) return;
+
+    reportedConversationId = conversationId;
+    chrome.runtime.sendMessage({
+      type: 'PREWARM_SELECTION_INDEX',
+      conversationId
+    }).catch(() => {});
   }
 
   function mountedContainerRoot(container, sourceTurnId) {
@@ -143,10 +159,11 @@
   }
 
   function scheduleReport() {
-    if (!enabled || refreshQueued) return;
+    if (refreshQueued) return;
     refreshQueued = true;
     requestAnimationFrame(() => {
       refreshQueued = false;
+      prewarmCurrentConversation();
       reportCurrentIds();
     });
   }
@@ -182,4 +199,9 @@
       return;
     }
   });
+
+  // Keep a lightweight route watch active before the popup is ever opened so
+  // the expensive ChatGPT selection index can be built while the user reads.
+  ensureObserver();
+  prewarmCurrentConversation();
 })();

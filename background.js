@@ -227,6 +227,7 @@ async function finishExportProgress(tabId, result) {
 
 const SELECTION_INDEX_TTL_MS = 5 * 60 * 1000;
 const selectionIndexMemory = new Map();
+const selectionIndexBuilds = new Map();
 
 function selectionIndexKey(conversationId) {
   return `selectionIndex:${conversationId}`;
@@ -278,6 +279,48 @@ async function freshSelectionIndex(conversationId) {
   if (Date.now() - record.builtAt > SELECTION_INDEX_TTL_MS) return null;
   if (record.index?.schemaVersion !== SELECTION_INDEX_SCHEMA_VERSION) return null;
   return record.index;
+}
+
+async function buildSelectionIndexForConversation(tabId, expectedConversationId = "") {
+  if (expectedConversationId) {
+    const cached = await freshSelectionIndex(expectedConversationId);
+    if (cached) {
+      return {
+        index: cached,
+        conversationId: expectedConversationId,
+        cached: true
+      };
+    }
+  }
+
+  const key = `${tabId}:${expectedConversationId || "*"}`;
+  let pending = selectionIndexBuilds.get(key);
+
+  if (!pending) {
+    pending = (async () => {
+      const platform = await platformForTab(tabId);
+      if (!platform) throw new Error(t("noActiveConversation"));
+
+      const data = await platform.getConversationInPage(tabId);
+      const conversationId = platform.conversationId(data);
+      if (expectedConversationId && conversationId !== expectedConversationId) {
+        throw new Error(t("errorConversationChanged"));
+      }
+
+      const index = platform.buildSelectionIndex(data);
+      await storeSelectionIndex(conversationId, index);
+      return { index, conversationId };
+    })();
+    selectionIndexBuilds.set(key, pending);
+  }
+
+  try {
+    return { ...(await pending), cached: false };
+  } finally {
+    if (selectionIndexBuilds.get(key) === pending) {
+      selectionIndexBuilds.delete(key);
+    }
+  }
 }
 
 async function markSelectionIndexDirtyIfNeeded(conversationId, ids = [], temporaryIds = []) {
@@ -350,6 +393,43 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, respond) => {
+  if (msg.type !== "PREWARM_SELECTION_INDEX") return;
+
+  const tabId = sender.tab?.id;
+  const conversationId = typeof msg.conversationId === "string"
+    ? msg.conversationId
+    : "";
+
+  if (tabId == null || !conversationId) {
+    respond({ ok: false });
+    return;
+  }
+
+  (async () => {
+    const platform = await platformForTab(tabId);
+    if (!platform || platform.id !== "chatgpt") return { ok: false };
+
+    const currentTab = await chrome.tabs.get(tabId);
+    if (platform.conversationIdFromUrl(currentTab?.url || "") !== conversationId) {
+      return { ok: false };
+    }
+
+    const built = await buildSelectionIndexForConversation(tabId, conversationId);
+
+    // Do not enable the DOM watcher on a different conversation if the user
+    // navigated away while the expensive full-conversation request was running.
+    const latestTab = await chrome.tabs.get(tabId);
+    if (platform.conversationIdFromUrl(latestTab?.url || "") === conversationId) {
+      await enableSelectionIndexWatch(tabId);
+    }
+
+    return { ok: true, cached: built.cached };
+  })().then(respond).catch(() => respond({ ok: false }));
+
+  return true;
+});
+
+chrome.runtime.onMessage.addListener((msg, sender, respond) => {
   if (msg.type !== "GET_SELECTION_SUMMARY") return;
 
   (async () => {
@@ -367,15 +447,12 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
     }
 
     if (!index) {
-      const platform = await platformForTab(msg.tabId);
-      if (!platform) throw new Error(t("noActiveConversation"));
-      const data = await platform.getConversationInPage(msg.tabId);
-      const conversationId = platform.conversationId(data);
-      if (msg.conversationId && conversationId !== msg.conversationId) {
-        throw new Error(t("errorConversationChanged"));
-      }
-      index = platform.buildSelectionIndex(data);
-      await storeSelectionIndex(conversationId, index);
+      const built = await buildSelectionIndexForConversation(
+        msg.tabId,
+        msg.conversationId || ""
+      );
+      index = built.index;
+      cached = built.cached;
     }
 
     await enableSelectionIndexWatch(msg.tabId);
