@@ -4,6 +4,7 @@ let initialized = false;
 let renderCounter = 0;
 
 function loadMermaidModule() {
+  if (globalThis.mermaid?.render) return Promise.resolve(globalThis.mermaid);
   if (modulePromise) return modulePromise;
   if (typeof document === "undefined") {
     return Promise.reject(new Error("Mermaid rendering requires a DOM document"));
