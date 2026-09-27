@@ -781,7 +781,7 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
     const conversationUrl = conversation.conversationUrl;
     const exportJson = {
       schemaVersion: 1,
-      exporter: "chatgpt-export-md-html",
+      exporter: "ai-chat-export",
       exporterVersion: chrome.runtime.getManifest().version,
       title: exportName,
       conversationId: conversation.conversationId,
