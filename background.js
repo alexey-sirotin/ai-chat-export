@@ -24,6 +24,7 @@ import {
   getInstallType,
   resolveAttachmentDownloadConcurrency
 } from "./runtime-mode.js";
+import { INCLUDE_DEBUG_JSON } from "./build-mode.js";
 import { buildMarkdownExport, buildHtmlExport } from "./render.js";
 import { prepareMessagesForMermaid, applyMermaidRenderings } from "./mermaid-html.js";
 import { renderMermaidSources } from "./mermaid-service.js";
@@ -148,7 +149,7 @@ async function storeExportProgress(tabId, state) {
   try {
     await chrome.storage.session.set({ [exportProgressKey(tabId)]: state });
   } catch (e) {
-    console.warn("chatgpt-export-md-html: could not persist export progress", e);
+    console.warn("ai-chat-export: could not persist export progress", e);
   }
 }
 
@@ -255,7 +256,7 @@ async function persistSelectionIndexRecord(conversationId, record) {
   try {
     await chrome.storage.session.set({ [selectionIndexKey(conversationId)]: record });
   } catch (e) {
-    console.warn("chatgpt-export-md-html: could not persist selection index", e);
+    console.warn("ai-chat-export: could not persist selection index", e);
   }
 }
 
@@ -519,7 +520,7 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
     const assistantName = (msg.assistantName || defaultAssistantName).trim() || defaultAssistantName;
     const exportMarkdown = msg.exportMarkdown !== false;
     const exportHtml = msg.exportHtml !== false;
-    const exportJsonEnabled = msg.exportJson !== false;
+    const exportJsonEnabled = INCLUDE_DEBUG_JSON && msg.exportJson !== false;
     const includeOriginalLink = msg.includeOriginalLink !== false;
     if (!exportMarkdown && !exportHtml && !exportJsonEnabled) throw new Error(t("chooseFormat"));
     const saveAttachments = msg.saveAttachments !== false;
@@ -677,7 +678,7 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
               throw createAbortError(t("exportCanceled"));
             }
             console.warn(
-              "chatgpt-export-md-html: could not resolve attachment metadata",
+              "ai-chat-export: could not resolve attachment metadata",
               a.id || a.sandboxPath || "",
               error
             );
@@ -812,7 +813,7 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
             mermaidPlan.blocks.map(block => block.source)
           );
         } catch (error) {
-          console.warn("chatgpt-export-md-html: Mermaid rendering failed; keeping source blocks", error);
+          console.warn("ai-chat-export: Mermaid rendering failed; keeping source blocks", error);
           mermaidRenderings = mermaidPlan.blocks.map(() => null);
         }
         throwIfAborted(signal, t("exportCanceled"));
@@ -876,7 +877,7 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
     try {
       selectionState = await chrome.tabs.sendMessage(tabId, { type: "RESET_AFTER_EXPORT" });
     } catch (e) {
-      console.warn("chatgpt-export-md-html: could not reset selection UI after export", e);
+      console.warn("ai-chat-export: could not reset selection UI after export", e);
     }
 
     return { ok: true, filename, selectionState };
