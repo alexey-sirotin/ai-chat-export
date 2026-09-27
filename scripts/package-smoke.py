@@ -51,7 +51,6 @@ COMMON_ROOT_FILES = {
     "vendor/KATEX-LICENSE.txt",
     "vendor/MERMAID-LICENSE.txt",
     "vendor/katex.mjs",
-    "vendor/mermaid.min.js",
     "zip.js",
 }
 
@@ -94,6 +93,7 @@ def expected_files(browser):
     files = set(COMMON_ROOT_FILES)
     files.update(source_files_under("_locales"))
     files.update(source_files_under("icons"))
+    files.update(source_files_under("vendor/mermaid-esm"))
 
     if browser == "chromium":
         files.update({"offscreen.html", "offscreen.js"})
