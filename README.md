@@ -2,7 +2,7 @@
 
 A browser extension for exporting conversations from **ChatGPT, Claude, Grok, and DeepSeek** to local Markdown and HTML files, with optional local copies of attachments.
 
-Current version: **0.1.37**
+Current version: **0.1.38**
 
 ## Supported providers
 
