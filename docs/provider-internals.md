@@ -1,6 +1,6 @@
 # Provider internals
 
-Internal engineering notes for `ChatGPT Export to Markdown & HTML`.
+Internal engineering notes for `AI Chat Export`.
 
 This document records the provider-specific behavior we have observed while implementing and testing the exporter. It is intentionally more detailed and less user-facing than `README.md`.
 
