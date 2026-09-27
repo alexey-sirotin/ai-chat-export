@@ -413,7 +413,7 @@ async function captureClaudeCustomVisuals(tabId, targets) {
 
     return await finish();
   } catch (error) {
-    console.warn("chatgpt-export-md-html: Claude visual capture failed", error);
+    console.warn("ai-chat-export: Claude visual capture failed", error);
     try {
       await chrome.scripting.executeScript({
         target: { tabId },
