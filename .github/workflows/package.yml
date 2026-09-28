@@ -45,6 +45,17 @@ jobs:
       - name: Smoke-test browser packages
         run: npm run test:package
 
+      - name: Reproduce packages without Git metadata
+        shell: bash
+        run: |
+          source_dir="$(mktemp -d)"
+          git archive --format=tar HEAD | tar -xf - -C "$source_dir"
+          (
+            cd "$source_dir"
+            bash scripts/package.sh
+            python3 scripts/package-smoke.py
+          )
+
       - name: Upload package artifact
         uses: actions/upload-artifact@v7
         with:
