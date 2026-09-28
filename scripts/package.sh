@@ -27,9 +27,32 @@ FIREFOX="$DIST/firefox"
 rm -rf "$DIST"
 mkdir -p "$CHROMIUM" "$FIREFOX"
 
-copy_tracked_files() {
+list_source_files() {
+  if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git ls-files -z
+    return
+  fi
+
+  # GitHub-generated source archives do not contain .git metadata. Fall back to
+  # the archive contents while ignoring directories that can only be created by
+  # local development or a previous package build.
+  python3 - <<'PY'
+import os
+import sys
+from pathlib import Path
+
+ignored_roots = {'.git', 'dist', 'node_modules'}
+for path in sorted(Path('.').rglob('*')):
+    if not path.is_file() or (path.parts and path.parts[0] in ignored_roots):
+        continue
+    sys.stdout.buffer.write(os.fsencode(path.as_posix()) + b'\0')
+PY
+}
+
+copy_source_files() {
   local target="$1"
-  while IFS= read -r path; do
+  while IFS= read -r -d '' path; do
+    path="${path#./}"
     case "$path" in
       .github/*|docs/*|scripts/*|tests/*|package.json|package-lock.json|README.md|PRIVACY.md|LICENSE|.gitignore)
         continue
@@ -37,11 +60,11 @@ copy_tracked_files() {
     esac
     mkdir -p "$target/$(dirname "$path")"
     cp "$path" "$target/$path"
-  done < <(git ls-files)
+  done < <(list_source_files)
 }
 
-copy_tracked_files "$CHROMIUM"
-copy_tracked_files "$FIREFOX"
+copy_source_files "$CHROMIUM"
+copy_source_files "$FIREFOX"
 
 # Working-tree builds keep the normalized JSON export for diagnostics. Release
 # packages deliberately disable it so Markdown and HTML are the public formats.
