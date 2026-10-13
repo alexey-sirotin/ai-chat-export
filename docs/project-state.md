@@ -1,6 +1,6 @@
 # AI Chat Export — project state
 
-Last updated: 2026-10-08
+Last updated: 2026-10-13
 
 This file is the canonical technical handoff for the project. Keep it focused on the **current state**, active decisions, known follow-ups, and the next useful steps. Do not turn it into a chronological development log.
 
@@ -9,7 +9,7 @@ This file is the canonical technical handoff for the project. Keep it focused on
 - Repository: `alexey-sirotin/ai-chat-export`
 - Product name: **AI Chat Export**
 - Default branch: `main`
-- Current `main` head when this file was created: `f76d741fdf0908e6542a03f307d469ac00773e18`
+- Current `main` head when this file was updated: `d5e633581e679f1f484cd7c0032c1b77db211b8c`
 - Current released version in the repository: **0.1.38**
 - Public export formats: Markdown and HTML
 - Diagnostic normalized JSON remains development-oriented and is disabled in packaged release builds.
@@ -176,6 +176,22 @@ Current behavior:
 
 Manual browser validation covered full export, selection, branch behavior, uploaded files, external raster images, and SVG rendering.
 
+## Compatibility watchdog
+
+The separate private Chromium MV3 companion repository is `alexey-sirotin/ai-chat-contract-watch`.
+
+Current watchdog behavior:
+- ChatGPT, Claude, Grok, and DeepSeek have live API canaries that mirror the exporter acquisition paths;
+- all four providers also have DOM-selection canaries for the selectors / message-id mapping used by the exporter;
+- checks run every 12 hours and can also be run manually per provider or all together;
+- first structural mismatch becomes `SUSPECT`, then a provider-specific retry runs after five minutes before confirming `CONTRACT_MISMATCH`;
+- the toolbar uses a dynamic flat `AI` icon: gray for no data, green for healthy configured providers, red for problems;
+- DeepSeek background tabs can occasionally fail to render the virtualized message list until made visible even while the API probe succeeds; current watchdog work treats this hidden-tab case as inconclusive instead of a false DOM mismatch and records timing / visibility diagnostics.
+
+Live browser tests have confirmed API and DOM probes for all four providers.
+
+Current companion work: PR #14 on branch `dynamic-status-icon`. Its popup also hides `Run now` when that provider has no configured canary URL, preventing the `NOT CONFIGURED` component pills from crushing the button.
+
 ## Packaging / CI
 
 Release packaging currently:
@@ -217,12 +233,13 @@ Repository was renamed from `chatgpt-export-md-html` to `ai-chat-export` after m
 
 ## Current open work
 
-At the time this file was created:
-- no open pull requests;
-- no open GitHub issues;
-- `main` is the canonical working base.
+Main exporter repository:
+- no feature work is active in this handoff; check GitHub before starting exporter changes.
 
-Do not invent a new task from stale handoff material. Check current GitHub state first when starting new work.
+Companion watchdog repository:
+- PR #14 `Add dynamic status toolbar icon` is the active PR;
+- current live-test focus is removing false DeepSeek DOM mismatches caused by hidden-tab rendering stalls while preserving real contract alerts;
+- current popup refinement hides `Run now` when the provider has no configured canary URL.
 
 ## Backlog / future work
 
@@ -230,11 +247,13 @@ Known ideas that are not current blockers:
 
 - broaden provider fixture coverage as server formats evolve;
 - improve semantic citation/source preservation where providers expose richer citation cards;
-- continue watching provider-internal APIs for compatibility drift;
+- continue watching provider-internal APIs for compatibility drift through the companion watchdog;
+- watchdog: retain a small local history of probe results;
+- watchdog: add a diagnostics page with useful response-shape, DOM-shape, timing, and visibility information;
+- watchdog: consider Firefox packaging after the monitoring design stabilizes;
 - possible future common refactors only where behavior is already proven across multiple providers;
 - HTML image preview resizing while keeping originals clickable remains low priority / “maybe someday”;
-- support for externally referenced ChatGPT web images can be improved later; current policy permits remote fallback;
-- scheduled compatibility testing remains desirable, but authenticated provider sessions make fully unattended checks non-trivial because login often uses Apple/Google/email-code flows.
+- support for externally referenced ChatGPT web images can be improved later; current policy permits remote fallback.
 
 ## Working rules for future chats
 
